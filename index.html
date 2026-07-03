@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grimoire — Find your next obsession</title>
+<meta name="description" content="Grimoire — a fantastical reading companion for discovering, exploring, and collecting your next favorite book.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   GRIMOIRE — design tokens
+   Palette: ink navy / gilt gold / spectral violet / parchment / crimson
+   Display: Cinzel (headings) / Cormorant Garamond — Body: Inter — Utility: JetBrains Mono
+============================================================ */
+:root{
+  --ink-950:#07080f;
+  --ink-900:#0b0e1a;
+  --ink-800:#11142a;
+  --ink-700:#171b35;
+  --surface:#15192b;
+  --surface-2:#1b2038;
+  --line:#272c47;
+  --parchment:#e8e3d8;
+  --parchment-dim:#aba89e;
+  --gilt:#d4af7a;
+  --gilt-bright:#f0cd95;
+  --violet:#8a6fc2;
+  --violet-dim:#6a5494;
+  --crimson:#b3394a;
+  --crimson-bright:#d8556a;
+  --emerald:#4f9b7e;
+
+  --font-display:'Cormorant Garamond', serif;
+  --font-head:'Cinzel', serif;
+  --font-body:'Inter', sans-serif;
+  --font-mono:'JetBrains Mono', monospace;
+
+  --radius-sm:6px;
+  --radius-md:12px;
+  --radius-lg:20px;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--ink-900);
+  color:var(--parchment);
+  font-family:var(--font-body);
+  line-height:1.5;
+  overflow-x:hidden;
+  min-height:100vh;
+}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+ul{list-style:none;}
+img{max-width:100%;display:block;}
+:focus-visible{outline:2px solid var(--gilt);outline-offset:3px;border-radius:4px;}
+
+::-webkit-scrollbar{width:10px;}
+::-webkit-scrollbar-track{background:var(--ink-950);}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:10px;}
+
+.eyebrow{
+  font-family:var(--font-mono);
+  font-size:.68rem;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--gilt);
+  display:inline-flex;
+  align-items:center;
+  gap:.5em;
+}
+.eyebrow::before{content:'';width:14px;height:1px;background:var(--gilt);display:inline-block;}
+
+/* ============ ORNAMENT ============ */
+.ornate-divider{
+  display:flex; align-items:center; gap:1rem; margin:3.2rem 0; color:var(--gilt); opacity:.65;
+  font-size:1.1rem; user-select:none;
+}
+.ornate-divider::before, .ornate-divider::after{
+  content:''; flex:1; height:1px; background:linear-gradient(to right, transparent, var(--gilt), transparent);
+}
+.ornate-divider span{flex-shrink:0; filter:drop-shadow(0 0 6px rgba(212,175,122,.5));}
+
+.dropcap::first-letter{
+  font-family:var(--font-display); font-style:italic; font-weight:700; font-size:3.2em;
+  float:left; line-height:.78; margin:.03em .1em 0 0; color:var(--gilt-bright);
+  text-shadow:0 0 18px rgba(240,205,149,.4);
+}
+
+@keyframes giltShimmer{
+  0%,100%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+}
+.shimmer-text{
+  background:linear-gradient(110deg, var(--gilt) 20%, var(--gilt-bright) 40%, #fff7e6 50%, var(--gilt-bright) 60%, var(--gilt) 80%);
+  background-size:220% 100%;
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  animation:giltShimmer 6s ease-in-out infinite;
+}
+
+/* ============ ATMOSPHERE LAYER (dynamic, swaps per book) ============ */
+#atmosphere{
+  position:fixed; inset:0; z-index:0;
+  background:radial-gradient(ellipse 120% 80% at 50% -10%, var(--ink-800), var(--ink-950) 70%);
+  transition:background 1.4s var(--ease);
+  overflow:hidden;
+}
+#atmosphere .sky-gradient{
+  position:absolute; inset:0;
+  opacity:0; transition:opacity 1.2s var(--ease);
+}
+#atmosphere.book-active .sky-gradient{opacity:1;}
+#atmosphere canvas{position:absolute; inset:0; width:100%; height:100%;}
+#atmosphere .vignette{
+  position:absolute; inset:0;
+  background:radial-gradient(ellipse 90% 70% at 50% 40%, transparent 40%, rgba(7,8,15,.78) 100%);
+  pointer-events:none;
+}
+#atmosphere .grain{
+  position:absolute; inset:0; opacity:.05; pointer-events:none; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.app{position:relative; z-index:1;}
+
+/* ============ NAV ============ */
+header.site-nav{
+  position:sticky; top:0; z-index:50;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 5vw;
+  background:rgba(11,14,26,.72);
+  backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+  gap:1.2rem;
+}
+.brand{
+  font-family:var(--font-head);
+  font-weight:600; font-size:1.32rem;
+  letter-spacing:.03em;
+  display:flex; align-items:center; gap:.5rem;
+  flex-shrink:0;
+}
+.brand .brand-icon{font-size:1.3rem; filter:drop-shadow(0 0 8px rgba(212,175,122,.55));}
+.brand .mark{color:var(--gilt); font-style:italic;}
+.nav-center{display:flex; align-items:center; gap:1.8rem; flex:1; min-width:0; justify-content:center;}
+nav.primary-links{display:flex; gap:1.9rem; align-items:center; flex-shrink:0;}
+nav.primary-links button{
+  font-family:var(--font-mono); font-size:.72rem; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--parchment-dim); padding:6px 2px; position:relative; transition:color .25s; white-space:nowrap;
+}
+nav.primary-links button::after{
+  content:''; position:absolute; left:0; bottom:-3px; height:1px; width:0%;
+  background:var(--gilt); transition:width .3s var(--ease);
+}
+nav.primary-links button:hover, nav.primary-links button.active{color:var(--parchment);}
+nav.primary-links button:hover::after, nav.primary-links button.active::after{width:100%;}
+
+.nav-search{position:relative; width:200px; flex-shrink:1; transition:width .25s var(--ease);}
+.nav-search:focus-within{width:280px;}
+.nav-search::before{
+  content:'⌕'; position:absolute; left:12px; top:50%; transform:translateY(-50%);
+  color:var(--parchment-dim); font-size:.95rem; pointer-events:none;
+}
+.nav-search input{
+  width:100%; background:var(--surface); border:1px solid var(--line); border-radius:999px;
+  padding:8px 14px 8px 30px; color:var(--parchment); font-size:.8rem; transition:border-color .2s;
+}
+.nav-search input:focus{border-color:var(--gilt);}
+.search-results{
+  position:absolute; top:calc(100% + 8px); left:0; right:0; min-width:280px;
+  background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-md);
+  box-shadow:0 24px 50px -10px rgba(0,0,0,.6);
+  max-height:360px; overflow-y:auto; display:none; z-index:60;
+}
+.search-results.open{display:block;}
+.search-result{
+  display:flex; align-items:center; gap:.7rem; width:100%; padding:.6rem .8rem; text-align:left;
+  border-bottom:1px solid var(--line);
+}
+.search-result:last-child{border-bottom:none;}
+.search-result:hover{background:rgba(212,175,122,.08);}
+.sr-cover{width:32px; height:44px; border-radius:4px; flex-shrink:0; border:1px solid var(--line);}
+.sr-meta{display:flex; flex-direction:column; min-width:0;}
+.sr-meta b{font-size:.82rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.sr-meta span{font-size:.7rem; color:var(--parchment-dim);}
+.search-empty{padding:.9rem; font-size:.8rem; color:var(--parchment-dim); text-align:center;}
+
+.nav-actions{display:flex; gap:.8rem; align-items:center; flex-shrink:0;}
+.btn{
+  font-family:var(--font-mono); font-size:.72rem; letter-spacing:.07em; text-transform:uppercase;
+  padding:10px 18px; border-radius:999px; border:1px solid var(--line);
+  transition:all .25s var(--ease); white-space:nowrap;
+}
+.btn:hover{border-color:var(--gilt); color:var(--gilt-bright); transform:translateY(-1px);}
+.btn-gilt{
+  background:linear-gradient(135deg,var(--gilt),#b8915a);
+  color:var(--ink-950); border:none; font-weight:600;
+  box-shadow:0 6px 20px -6px rgba(212,175,122,.55);
+}
+.btn-gilt:hover{filter:brightness(1.08); transform:translateY(-1px);}
+.btn-ghost-violet{border-color:var(--violet-dim); color:var(--violet);}
+.btn-ghost-violet:hover{border-color:var(--violet); color:#c4b3ee;}
+.btn-seal{display:inline-flex; align-items:center; gap:.5em;}
+.btn-seal .seal-ic{
+  display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, var(--crimson-bright), var(--crimson) 70%); font-size:.6rem;
+  box-shadow:0 0 6px rgba(179,57,74,.6);
+}
+
+/* ============ VIEW ROUTING ============ */
+.view{display:none; animation:viewIn .5s var(--ease);}
+.view.active{display:block;}
+@keyframes viewIn{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);}}
+
+/* ============ HERO ============ */
+.hero{
+  min-height:88vh;
+  display:flex; align-items:center;
+  padding:0 5vw;
+  position:relative;
+}
+.hero-grid{
+  display:grid; grid-template-columns:1.1fr .9fr; gap:4rem; align-items:center;
+  width:100%; max-width:1320px; margin:0 auto;
+}
+.hero-copy h1{
+  font-family:var(--font-display);
+  font-size:clamp(2.8rem,5.6vw,4.6rem);
+  line-height:1.04;
+  font-weight:600;
+  margin:.6rem 0 1.1rem;
+}
+.hero-copy h1 em{color:var(--gilt); font-style:italic; font-weight:600;}
+.hero-copy p{
+  color:var(--parchment-dim); font-size:1.08rem; max-width:46ch; margin-bottom:2rem;
+}
+.hero-cta{display:flex; gap:1rem; align-items:center; flex-wrap:wrap;}
+.btn-lg{padding:15px 28px; font-size:.78rem; border-radius:999px;}
+.hero-stats{display:flex; gap:2.2rem; margin-top:2.6rem;}
+.hero-stats div b{
+  display:block; font-family:var(--font-display); font-size:1.9rem; color:var(--gilt-bright);
+}
+.hero-stats div span{font-size:.72rem; color:var(--parchment-dim); font-family:var(--font-mono); letter-spacing:.05em;}
+
+/* Signature element: layered open-book silhouette w/ floating motes */
+.book-signature{
+  position:relative; height:480px; display:flex; align-items:center; justify-content:center;
+}
+.book-signature svg{width:100%; height:100%; max-width:420px;}
+.mote{
+  position:absolute; border-radius:50%; background:var(--gilt);
+  opacity:.55; filter:blur(.5px);
+  animation:float-mote linear infinite;
+}
+@keyframes float-mote{
+  0%{transform:translateY(0) translateX(0); opacity:0;}
+  10%{opacity:.6;}
+  90%{opacity:.4;}
+  100%{transform:translateY(-340px) translateX(var(--drift)); opacity:0;}
+}
+
+/* ============ SECTION SHELLS ============ */
+section.shell{padding:6rem 5vw; max-width:1320px; margin:0 auto;}
+.shell-head{display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:2.4rem; gap:2rem; flex-wrap:wrap;}
+.shell-head h2{font-family:var(--font-head); font-size:clamp(1.7rem,3vw,2.3rem); font-weight:600;}
+.shell-head p{color:var(--parchment-dim); max-width:50ch; font-size:.95rem; margin-top:.4rem;}
+
+/* ============ HOW IT WORKS ============ */
+.how-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:1.6rem;}
+.how-card{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg);
+  padding:2rem; transition:transform .3s var(--ease), border-color .3s, box-shadow .3s;
+}
+.how-card:hover{transform:translateY(-4px); border-color:var(--violet-dim); box-shadow:0 20px 40px -14px rgba(138,111,194,.35);}
+.how-card .glyph{font-size:1.8rem; margin-bottom:1rem; display:block;}
+.how-card .step-num{
+  font-family:var(--font-head); font-size:1.3rem; font-weight:600; color:var(--ink-950);
+  background:linear-gradient(135deg,var(--gilt),#b8915a); width:34px; height:34px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; margin-bottom:1rem;
+}
+.how-card h3{font-family:var(--font-display); font-size:1.3rem; margin-bottom:.5rem; font-weight:600;}
+.how-card p{color:var(--parchment-dim); font-size:.9rem;}
+.how-card button.go{
+  margin-top:1.2rem; font-family:var(--font-mono); font-size:.7rem; letter-spacing:.07em;
+  text-transform:uppercase; color:var(--gilt); display:inline-flex; align-items:center; gap:.4em;
+}
+.how-card button.go:hover{color:var(--gilt-bright); gap:.6em; transition:gap .2s;}
+
+/* ============ CAROUSEL / GRID OF BOOKS ============ */
+.book-row{display:flex; gap:1.3rem; overflow-x:auto; padding-bottom:1rem; scroll-snap-type:x mandatory;}
+.book-row::-webkit-scrollbar{height:8px;}
+.book-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:1.5rem;}
+
+.book-card{
+  scroll-snap-align:start;
+  flex:0 0 190px;
+  cursor:pointer;
+  position:relative;
+}
+.book-card .cover{
+  width:100%; aspect-ratio:2/3; border-radius:var(--radius-md);
+  position:relative; overflow:hidden;
+  border:1px solid var(--line);
+  transition:transform .35s var(--ease), box-shadow .35s var(--ease);
+  display:flex; align-items:flex-end; padding:14px;
+}
+.book-card:hover .cover{transform:translateY(-6px) scale(1.02); box-shadow:0 18px 40px -10px rgba(0,0,0,.6), 0 0 30px -8px rgba(212,175,122,.35);}
+.book-card .cover .title-on-cover{
+  font-family:var(--font-display); font-weight:700; font-size:1.05rem; line-height:1.15;
+  color:#fff; text-shadow:0 2px 12px rgba(0,0,0,.7); position:relative; z-index:2;
+}
+.cover-frame{
+  position:absolute; inset:7px; border:1px solid rgba(212,175,122,.35); border-radius:6px; pointer-events:none;
+  box-shadow:inset 0 0 0 3px rgba(7,8,15,.08);
+}
+.cover-emblem{
+  position:absolute; top:12px; left:12px; z-index:2;
+  font-family:'Cinzel',serif; font-size:.58rem; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--gilt-bright); background:rgba(7,8,15,.55); border:1px solid rgba(212,175,122,.35);
+  padding:3px 8px; border-radius:20px; opacity:.9;
+}
+.cover-corner{position:absolute; width:9px; height:9px; opacity:.75; z-index:2; color:var(--gilt-bright); font-size:9px; line-height:1;}
+.cover-corner::before{content:'✦';}
+.cover-corner.tl{top:6px; left:6px;}
+.cover-corner.tr{top:6px; right:6px;}
+.cover-corner.bl{bottom:6px; left:6px;}
+.cover-corner.br{bottom:6px; right:6px;}
+.book-card .meta{margin-top:.7rem;}
+.book-card .meta .t{font-weight:600; font-size:.92rem;}
+.book-card .meta .a{font-size:.78rem; color:var(--parchment-dim); margin-top:2px;}
+.book-card .tags{display:flex; gap:.4rem; margin-top:.5rem; flex-wrap:wrap;}
+.lib-stars{color:var(--gilt); font-size:.8rem; margin-top:.3rem; letter-spacing:1px;}
+.tag{
+  font-family:var(--font-mono); font-size:.62rem; letter-spacing:.04em; text-transform:uppercase;
+  padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--parchment-dim);
+}
+.tag.theme-tag{border-color:var(--violet-dim); color:var(--violet);}
+
+/* ============ AI CHAT WIDGET ============ */
+#ai-launcher{
+  position:fixed; bottom:26px; right:26px; z-index:80;
+  width:60px; height:60px; border-radius:50%;
+  background:linear-gradient(135deg,var(--violet),#5a4789);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 10px 30px -6px rgba(138,111,194,.6);
+  font-size:1.5rem; transition:transform .25s var(--ease);
+}
+#ai-launcher:hover{transform:scale(1.07);}
+#ai-launcher .ai-launcher-label{font-family:var(--font-mono); font-size:.72rem; font-weight:700; letter-spacing:.05em; color:#fff;}
+#ai-launcher .pulse{
+  position:absolute; inset:-6px; border-radius:50%; border:1.5px solid var(--violet);
+  animation:pulse-ring 2.4s ease-out infinite;
+}
+@keyframes pulse-ring{0%{transform:scale(.85); opacity:.7;} 100%{transform:scale(1.35); opacity:0;}}
+
+#ai-panel{
+  position:fixed; bottom:100px; right:26px; z-index:81;
+  width:380px; max-height:560px;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg);
+  box-shadow:0 30px 70px -10px rgba(0,0,0,.6);
+  display:flex; flex-direction:column;
+  transform:translateY(20px) scale(.97); opacity:0; pointer-events:none;
+  transition:all .3s var(--ease);
+}
+#ai-panel.open{transform:translateY(0) scale(1); opacity:1; pointer-events:all;}
+.ai-head{
+  padding:1.1rem 1.3rem; border-bottom:1px solid var(--line);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.ai-head h4{font-family:var(--font-display); font-size:1.15rem; display:flex; align-items:center; gap:.5rem;}
+.ai-head .dot{width:7px; height:7px; border-radius:50%; background:var(--emerald); box-shadow:0 0 8px var(--emerald);}
+.ai-body{flex:1; overflow-y:auto; padding:1.1rem 1.3rem; display:flex; flex-direction:column; gap:.8rem; min-height:200px;}
+.ai-msg{font-size:.86rem; line-height:1.45; max-width:88%;}
+.ai-msg.bot{background:var(--surface-2); padding:.7rem .9rem; border-radius:var(--radius-md) var(--radius-md) var(--radius-md) 4px; align-self:flex-start;}
+.ai-msg.user{background:var(--violet-dim); color:#fff; padding:.7rem .9rem; border-radius:var(--radius-md) var(--radius-md) 4px var(--radius-md); align-self:flex-end;}
+.ai-msg.bot .book-suggest{
+  margin-top:.5rem; display:flex; gap:.5rem; flex-wrap:wrap;
+}
+.ai-msg.bot .book-suggest button{
+  font-family:var(--font-mono); font-size:.66rem; padding:5px 10px; border-radius:999px;
+  border:1px solid var(--gilt); color:var(--gilt-bright);
+}
+.ai-msg.bot .book-suggest button:hover{background:var(--gilt); color:var(--ink-950);}
+.ai-input-row{padding:1rem 1.1rem; border-top:1px solid var(--line); display:flex; gap:.6rem;}
+.ai-input-row input{
+  flex:1; background:var(--ink-900); border:1px solid var(--line); border-radius:999px;
+  padding:.65rem 1rem; color:var(--parchment); font-size:.85rem;
+}
+.ai-input-row input:focus{border-color:var(--violet);}
+.ai-input-row button{
+  background:var(--violet); color:#fff; width:38px; height:38px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.ai-input-row button:hover{background:var(--violet-dim);}
+.ai-typing span{display:inline-block; width:5px; height:5px; background:var(--parchment-dim); border-radius:50%; margin-right:3px; animation:bounce 1s infinite;}
+.ai-typing span:nth-child(2){animation-delay:.15s;}
+.ai-typing span:nth-child(3){animation-delay:.3s;}
+@keyframes bounce{0%,100%{transform:translateY(0);} 50%{transform:translateY(-4px);}}
+
+/* ============ QUIZ VIEW ============ */
+.quiz-shell{
+  max-width:760px; margin:0 auto; padding:5rem 5vw 6rem;
+}
+.quiz-progress{display:flex; gap:.4rem; margin-bottom:2.4rem;}
+.quiz-progress i{flex:1; height:3px; background:var(--line); border-radius:2px; overflow:hidden; position:relative;}
+.quiz-progress i.done::after, .quiz-progress i.active::after{
+  content:''; position:absolute; inset:0; background:var(--gilt);
+}
+.quiz-step{display:none;}
+.quiz-step.active{display:block; animation:viewIn .4s var(--ease);}
+.quiz-step h2{font-family:var(--font-display); font-size:2rem; margin-bottom:.5rem; font-weight:600;}
+.quiz-step p.hint{color:var(--parchment-dim); margin-bottom:1.8rem; font-size:.95rem;}
+.chip-grid{display:flex; flex-wrap:wrap; gap:.7rem; margin-bottom:2rem;}
+.chip{
+  padding:10px 18px; border-radius:999px; border:1px solid var(--line); font-size:.85rem;
+  transition:all .2s var(--ease);
+}
+.chip:hover{border-color:var(--violet);}
+.chip.selected{background:var(--gilt); color:var(--ink-950); border-color:var(--gilt); font-weight:600;}
+.text-field{width:100%; margin-bottom:1.2rem;}
+.text-field label{display:block; font-family:var(--font-mono); font-size:.7rem; letter-spacing:.07em; text-transform:uppercase; color:var(--parchment-dim); margin-bottom:.5rem;}
+.text-field input, .text-field textarea{
+  width:100%; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm);
+  padding:.8rem 1rem; color:var(--parchment); font-size:.95rem; font-family:inherit;
+}
+.text-field input:focus, .text-field textarea:focus{border-color:var(--gilt);}
+.quiz-nav{display:flex; justify-content:space-between; margin-top:2.5rem;}
+
+/* ============ RESULTS VIEW ============ */
+.results-head{padding:5rem 5vw 2rem; max-width:1320px; margin:0 auto;}
+.results-head h2{font-family:var(--font-head); font-size:clamp(1.8rem,3.4vw,2.5rem); font-weight:600;}
+.results-head p{color:var(--parchment-dim); margin-top:.5rem; max-width:60ch;}
+.filter-bar{display:flex; gap:.6rem; margin:1.6rem 0 0; flex-wrap:wrap;}
+.filter-chip{
+  font-family:var(--font-mono); font-size:.68rem; letter-spacing:.05em; text-transform:uppercase;
+  padding:6px 14px; border-radius:999px; border:1px solid var(--line); color:var(--parchment-dim);
+}
+.filter-chip.active{border-color:var(--gilt); color:var(--gilt-bright);}
+.results-grid-wrap{padding:1rem 5vw 5rem; max-width:1320px; margin:0 auto;}
+.load-more-row{display:flex; justify-content:center; margin-top:3rem;}
+
+/* ============ BOOK DETAIL VIEW ============ */
+.book-detail{padding:3rem 5vw 6rem; max-width:1180px; margin:0 auto;}
+.detail-top{display:grid; grid-template-columns:300px 1fr; gap:3rem; margin-bottom:3rem;}
+.detail-cover{
+  width:100%; aspect-ratio:2/3; border-radius:var(--radius-lg);
+  border:1px solid var(--line); display:flex; align-items:flex-end; padding:1.5rem;
+  box-shadow:0 30px 60px -15px rgba(0,0,0,.55); position:relative; overflow:hidden;
+}
+.detail-cover .title-on-cover{font-family:var(--font-display); font-weight:700; font-size:1.6rem; color:#fff; text-shadow:0 2px 14px rgba(0,0,0,.8); position:relative; z-index:2;}
+.back-link{
+  font-family:var(--font-mono); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--parchment-dim); display:inline-flex; align-items:center; gap:.5em; margin-bottom:1.6rem;
+}
+.back-link:hover{color:var(--gilt);}
+.detail-info .eyebrow{margin-bottom:.8rem;}
+.detail-info h1{font-family:var(--font-display); font-size:clamp(2.1rem,3.6vw,3rem); font-weight:600; line-height:1.06;}
+.detail-info .by{color:var(--parchment-dim); margin-top:.4rem; font-size:1.05rem;}
+.detail-info .by b{color:var(--gilt);}
+.detail-info .tags{margin-top:1.1rem;}
+.detail-info p.syn{margin-top:1.4rem; font-size:1.02rem; color:var(--parchment); max-width:60ch; line-height:1.65;}
+
+.section-nav{
+  display:flex; gap:0; border-bottom:1px solid var(--line); margin-bottom:2.5rem; overflow-x:auto;
+}
+.section-nav button{
+  padding:.9rem 1.4rem; font-family:var(--font-mono); font-size:.74rem; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--parchment-dim); position:relative; white-space:nowrap;
+}
+.section-nav button.active{color:var(--gilt-bright);}
+.section-nav button.active::after{content:''; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--gilt);}
+.section-nav button .lock{margin-left:.4em; font-size:.85em;}
+
+.detail-section{display:none;}
+.detail-section.active{display:block; animation:viewIn .4s var(--ease);}
+
+/* Playlist */
+.playlist-card{
+  display:flex; gap:1.4rem; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg);
+  padding:1.5rem; align-items:center; max-width:560px;
+}
+.playlist-art{
+  width:96px; height:96px; border-radius:var(--radius-sm); flex-shrink:0; position:relative; overflow:hidden;
+  box-shadow:0 10px 24px -6px rgba(0,0,0,.5);
+}
+.playlist-art .spotify-badge{
+  position:absolute; bottom:6px; right:6px; background:#1ed760; color:#04130a;
+  font-size:.6rem; font-weight:700; padding:2px 6px; border-radius:4px; font-family:var(--font-mono);
+}
+.playlist-meta b{font-family:var(--font-display); font-size:1.2rem; display:block; margin-bottom:2px;}
+.playlist-meta span{font-size:.8rem; color:var(--parchment-dim); display:block;}
+.playlist-meta .open-spotify{
+  margin-top:.8rem; display:inline-flex; align-items:center; gap:.5rem;
+  background:#1ed760; color:#04130a; font-weight:700; font-size:.78rem;
+  padding:8px 16px; border-radius:999px;
+}
+.playlist-meta .open-spotify:hover{filter:brightness(1.05);}
+
+/* Fan art link cards — outbound searches to real art platforms, no embedded/scraped images */
+.fanart-link-card{
+  border:1px solid var(--line); border-radius:var(--radius-md); padding:1.1rem 1.3rem; margin-bottom:1rem;
+  background:var(--surface-2);
+}
+.flc-name{font-family:'Cinzel',serif; font-size:.95rem; color:var(--parchment); margin-bottom:.7rem; display:flex; align-items:center; gap:.6rem;}
+.flc-role{
+  font-family:'Inter',sans-serif; font-size:.65rem; letter-spacing:.1em; text-transform:uppercase; color:var(--gilt-bright);
+  background:rgba(212,175,122,.12); border:1px solid rgba(212,175,122,.3); border-radius:20px; padding:2px 8px;
+}
+.fanart-link-row{display:flex; flex-wrap:wrap; gap:.6rem;}
+
+.premium-lock-panel{
+  border:1px dashed var(--violet-dim); border-radius:var(--radius-lg); padding:3rem 2rem;
+  text-align:center; max-width:520px; margin:0 auto;
+}
+.premium-lock-panel .glyph{font-size:2.2rem; margin-bottom:1rem; display:block;}
+.premium-lock-panel h3{font-family:var(--font-display); font-size:1.5rem; margin-bottom:.6rem;}
+.premium-lock-panel p{color:var(--parchment-dim); font-size:.9rem; margin-bottom:1.6rem;}
+
+/* Rating + comments */
+.rate-row{display:flex; gap:.8rem; flex-wrap:wrap; margin-bottom:2rem;}
+.rate-btn{
+  padding:10px 18px; border-radius:999px; border:1px solid var(--line); font-size:.85rem; font-family:var(--font-mono);
+  letter-spacing:.03em; display:flex; align-items:center; gap:.5em;
+}
+.rate-btn:hover{border-color:var(--gilt);}
+.rate-btn.selected{background:var(--gilt); color:var(--ink-950); border-color:var(--gilt); font-weight:600;}
+.star-row{display:flex; gap:.3rem; margin:.4rem 0 2rem;}
+.star{font-size:1.7rem; color:var(--line); cursor:pointer; transition:transform .15s, color .15s;}
+.star:hover{transform:scale(1.15);}
+.star.filled{color:var(--gilt);}
+
+.comment-form{display:flex; gap:.8rem; margin-bottom:2rem;}
+.comment-form input{
+  flex:1; background:var(--surface); border:1px solid var(--line); border-radius:999px;
+  padding:.75rem 1.2rem; color:var(--parchment); font-size:.88rem;
+}
+.comment-form input:focus{border-color:var(--gilt);}
+.comment-form button{
+  background:var(--gilt); color:var(--ink-950); border-radius:999px; padding:.75rem 1.4rem;
+  font-weight:600; font-size:.82rem; white-space:nowrap;
+}
+.comment-list{display:flex; flex-direction:column; gap:1.1rem;}
+.comment-item{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-md); padding:1.1rem 1.3rem;
+}
+.comment-item .who{display:flex; justify-content:space-between; font-size:.78rem; color:var(--parchment-dim); margin-bottom:.4rem;}
+.comment-item .who b{color:var(--gilt); font-family:var(--font-mono); font-weight:500;}
+.comment-item p{font-size:.9rem; line-height:1.5;}
+
+/* Theories */
+.theory-card{background:var(--surface); border:1px solid var(--violet-dim); border-radius:var(--radius-md); padding:1.4rem; margin-bottom:1rem;}
+.theory-card .tag{margin-bottom:.6rem; display:inline-block;}
+.theory-card p{font-size:.9rem; color:var(--parchment); line-height:1.6;}
+.theory-card .who{font-family:var(--font-mono); font-size:.72rem; color:var(--violet); margin-top:.6rem; display:block;}
+
+/* ============ LIBRARY VIEW ============ */
+.library-empty-wrap{display:flex; justify-content:center; padding:2rem 0;}
+
+/* ============ ONBOARD MODAL / PREMIUM MODAL ============ */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(5,6,11,.78); backdrop-filter:blur(6px);
+  z-index:90; display:none; align-items:center; justify-content:center; padding:2rem;
+}
+.modal-overlay.open{display:flex;}
+.modal-box{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg);
+  max-width:480px; width:100%; padding:2.4rem; position:relative;
+  box-shadow:0 40px 90px -10px rgba(0,0,0,.7), 0 0 60px -20px rgba(212,175,122,.25);
+  animation:viewIn .35s var(--ease);
+  max-height:90vh; overflow-y:auto;
+}
+.modal-box::before{
+  content:''; position:absolute; inset:8px; border:1px solid rgba(212,175,122,.18); border-radius:14px; pointer-events:none;
+}
+.modal-close{position:absolute; top:1.2rem; right:1.2rem; font-size:1.3rem; color:var(--parchment-dim);}
+.modal-close:hover{color:var(--parchment);}
+.modal-box h3{font-family:var(--font-display); font-size:1.7rem; margin-bottom:.7rem;}
+.modal-box p{color:var(--parchment-dim); font-size:.92rem; margin-bottom:1.5rem;}
+.price-tag{font-family:var(--font-display); font-size:2.4rem; color:var(--gilt-bright); margin:1rem 0;}
+.price-tag span{font-family:var(--font-mono); font-size:.9rem; color:var(--parchment-dim);}
+.perk-list{display:flex; flex-direction:column; gap:.7rem; margin-bottom:1.8rem;}
+.perk-list li{display:flex; gap:.7rem; align-items:flex-start; font-size:.88rem;}
+.perk-list li .ic{color:var(--gilt); flex-shrink:0;}
+
+.card-form-row{display:flex; gap:1rem;}
+.card-form-row .text-field{flex:1;}
+.card-visual{
+  background:linear-gradient(135deg, #1b2038, #0f1220 60%);
+  border:1px solid var(--line); border-radius:var(--radius-md); padding:1.2rem 1.3rem; margin-bottom:1.4rem;
+  position:relative; overflow:hidden;
+}
+.card-visual::after{
+  content:'✦'; position:absolute; right:14px; top:14px; color:var(--gilt); opacity:.4; font-size:1.1rem;
+}
+.card-visual .cv-number{font-family:var(--font-mono); font-size:1.05rem; letter-spacing:.12em; color:var(--parchment); min-height:1.4em;}
+.card-visual .cv-bottom{display:flex; justify-content:space-between; margin-top:1rem; font-family:var(--font-mono); font-size:.68rem; color:var(--parchment-dim); text-transform:uppercase; letter-spacing:.05em;}
+.card-visual .cv-bottom b{color:var(--parchment); display:block; font-size:.82rem; letter-spacing:.02em; text-transform:none; margin-top:2px;}
+.demo-note{
+  font-size:.74rem !important; text-align:center; margin-top:1rem !important; margin-bottom:0 !important;
+  color:var(--parchment-dim); display:flex; align-items:center; justify-content:center; gap:.4em;
+}
+.cc-error{color:var(--crimson-bright); font-size:.78rem; margin:-.6rem 0 1rem; display:none;}
+.cc-error.show{display:block;}
+
+/* ============ FOOTER ============ */
+footer{
+  border-top:1px solid var(--line); padding:3rem 5vw; display:flex; justify-content:space-between;
+  flex-wrap:wrap; gap:2rem; color:var(--parchment-dim); font-size:.82rem; position:relative; z-index:1;
+}
+footer .fcol h5{font-family:var(--font-mono); letter-spacing:.07em; text-transform:uppercase; font-size:.7rem; color:var(--parchment); margin-bottom:.8rem;}
+footer .fcol button{display:block; margin-bottom:.5rem; color:var(--parchment-dim);}
+footer .fcol button:hover{color:var(--gilt);}
+footer .fbrand{font-family:var(--font-head); font-size:1.1rem; color:var(--parchment); margin-bottom:.6rem;}
+
+/* toast */
+#toast{
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:var(--surface-2); border:1px solid var(--gilt); padding:.8rem 1.4rem; border-radius:999px;
+  font-size:.85rem; opacity:0; transition:all .3s var(--ease); z-index:95; pointer-events:none;
+}
+#toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+@media (max-width:1080px){
+  .nav-center{gap:1rem;}
+  .nav-search{width:150px;}
+  .nav-search:focus-within{width:220px;}
+}
+@media (max-width:880px){
+  nav.primary-links{display:none;}
+  .nav-center{justify-content:flex-start;}
+  .hero-grid{grid-template-columns:1fr;}
+  .book-signature{height:280px;}
+  .how-grid{grid-template-columns:1fr;}
+  .detail-top{grid-template-columns:1fr;}
+  #ai-panel{width:90vw; right:5vw;}
+  .card-form-row{flex-direction:column; gap:0;}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+}
+
+/* ============ EXTRA FANTASY ATMOSPHERE ============ */
+#cursorGlow{
+  position:fixed; top:0; left:0; width:340px; height:340px; border-radius:50%; z-index:2;
+  pointer-events:none; transform:translate(-50%,-50%); opacity:0;
+  background:radial-gradient(circle, rgba(212,175,122,.10), rgba(138,111,194,.06) 45%, transparent 70%);
+  transition:opacity .4s ease; mix-blend-mode:screen;
+}
+#cursorGlow.show{opacity:1;}
+
+.hero::before{
+  content:''; position:absolute; right:-6%; top:8%; width:560px; height:560px; max-width:70vw; max-height:70vw;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='none' stroke='%23d4af7a' stroke-width='0.6'%3E%3Ccircle cx='100' cy='100' r='95'/%3E%3Ccircle cx='100' cy='100' r='78'/%3E%3Ccircle cx='100' cy='100' r='60'/%3E%3Cpath d='M100 5 L100 195 M5 100 L195 100 M27 27 L173 173 M173 27 L27 173'/%3E%3Cpath d='M100 22 L108 92 L178 100 L108 108 L100 178 L92 108 L22 100 L92 92 Z'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-size:contain; opacity:.16; pointer-events:none; z-index:0;
+  animation:compassSpin 120s linear infinite;
+}
+@keyframes compassSpin{from{transform:rotate(0deg);} to{transform:rotate(360deg);}}
+.hero-grid{position:relative; z-index:1;}
+
+.shell-head h2, .results-head h2, .modal-box h3{position:relative;}
+
+/* Illustrated cover art */
+.cover-art-svg{position:absolute; inset:0; width:100%; height:100%; z-index:1; pointer-events:none; transition:opacity .3s ease;}
+
+/* Official cover artwork (Open Library) — fades in over the illustrated placeholder once loaded */
+.official-cover{
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:3;
+  opacity:0; transition:opacity .5s ease; border-radius:inherit;
+}
+.has-official .official-cover{opacity:1;}
+.has-official .cover-art-svg, .has-official .cover-emblem, .has-official .title-on-cover{opacity:0;}
+.cover-frame, .cover-corner{z-index:4;}
+
+/* Library fan-art preview strip */
+.lib-fanart-strip{display:flex; align-items:center; gap:.35rem; margin-top:.6rem;}
+.lib-fanart-thumb{
+  width:30px; height:30px; border-radius:6px; border:1px solid var(--line); position:relative; overflow:hidden; flex-shrink:0;
+}
+.lib-fanart-thumb.blurred{filter:blur(2.5px) brightness(.8);}
+.lib-fanart-thumb .lft-lock{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:.6rem;
+  background:rgba(7,8,15,.35);
+}
+.lib-fanart-label{font-family:var(--font-mono); font-size:.62rem; letter-spacing:.04em; text-transform:uppercase; color:var(--parchment-dim); margin-left:.15rem;}
+
+/* extra ambient hover glow for cards */
+.fanart-link-card, .theory-card, .comment-item{transition:box-shadow .3s var(--ease), border-color .3s var(--ease);}
+.fanart-link-card:hover{box-shadow:0 16px 34px -12px rgba(212,175,122,.35);}
+.theory-card:hover, .comment-item:hover{border-color:var(--violet-dim);}
+</style>
+</head>
+<body>
+
+<div id="atmosphere">
+  <div class="sky-gradient" id="skyGradient"></div>
+  <canvas id="fxCanvas"></canvas>
+  <div class="vignette"></div>
+  <div class="grain"></div>
+</div>
+<div id="cursorGlow"></div>
+
+<div class="app">
+
+  <header class="site-nav">
+    <div class="brand"><span class="mark">Gri</span>moire</div>
+    <div class="nav-center">
+      <nav class="primary-links">
+        <button data-route="home" class="active">Home</button>
+        <button data-route="quiz">Find My Books</button>
+        <button data-route="results">Browse</button>
+        <button data-route="library">Library</button>
+        <button data-route="premium-info">Premium</button>
+      </nav>
+      <div class="nav-search">
+        <input type="text" id="siteSearchInput" placeholder="Search titles, authors, genres…" autocomplete="off">
+        <div class="search-results" id="searchResultsDropdown"></div>
+      </div>
+    </div>
+    <div class="nav-actions">
+      <button class="btn" id="premiumNavBtn">✦ Premium</button>
+      <button class="btn btn-gilt" data-route="quiz">Get Recommendations</button>
+    </div>
+  </header>
+
+  <!-- ============ HOME VIEW ============ -->
+  <main id="view-home" class="view active">
+    <section class="hero">
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <span class="eyebrow">A reading companion, not an algorithm feed</span>
+          <h1>Find the book that<br>finds <em class="shimmer-text">you</em>.</h1>
+          <p>Tell Grimoire what you love. Get a shelf built only for you, drawn from authors and traditions across the world — then step inside the story before you've read a page.</p>
+          <div class="hero-cta">
+            <button class="btn btn-gilt btn-lg" data-route="quiz">Start the Quiz →</button>
+            <button class="btn btn-lg" data-route="results">Browse the Catalog</button>
+          </div>
+          <div class="hero-stats">
+            <div><b class="shimmer-text">Real</b><span>Covers, every single title</span></div>
+            <div><b id="statCountries">24+</b><span>Countries represented</span></div>
+            <div><b id="statCatalog">77</b><span>Curated titles in the library</span></div>
+          </div>
+        </div>
+        <div class="book-signature" id="bookSignature">
+          <svg viewBox="0 0 420 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="heroGlow" cx="0.5" cy="0.4" r="0.55">
+                <stop offset="0" stop-color="#fff6e0"/>
+                <stop offset="0.55" stop-color="#f0cd95"/>
+                <stop offset="1" stop-color="#f0cd95" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="bookCrimson" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#8a2b2b"/>
+                <stop offset="1" stop-color="#4a1414"/>
+              </linearGradient>
+              <linearGradient id="bookViolet" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#5a4a8a"/>
+                <stop offset="1" stop-color="#2e2352"/>
+              </linearGradient>
+              <linearGradient id="bookInk" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#233047"/>
+                <stop offset="1" stop-color="#10182a"/>
+              </linearGradient>
+              <linearGradient id="pageGlow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#fff6e0"/>
+                <stop offset="1" stop-color="#f0cd95"/>
+              </linearGradient>
+              <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="5" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+
+            <!-- ambient glow backdrop -->
+            <circle cx="210" cy="205" r="165" fill="url(#heroGlow)" opacity="0.55"/>
+            <circle cx="210" cy="205" r="96" fill="none" stroke="#f0cd95" stroke-width="1" opacity="0.3"/>
+
+            <!-- stars -->
+            <circle cx="55" cy="85" r="2" fill="#fff" opacity="0.7"/>
+            <circle cx="355" cy="65" r="1.6" fill="#fff" opacity="0.6"/>
+            <circle cx="382" cy="335" r="1.8" fill="#fff" opacity="0.55"/>
+            <circle cx="42" cy="310" r="1.6" fill="#fff" opacity="0.5"/>
+
+            <!-- ground shadow -->
+            <ellipse cx="210" cy="440" rx="150" ry="16" fill="#000" opacity="0.3"/>
+
+            <!-- stacked closed books -->
+            <g transform="translate(210,382)">
+              <g transform="rotate(-7)">
+                <rect x="-140" y="-16" width="280" height="34" rx="4" fill="url(#bookInk)"/>
+                <rect x="-140" y="-16" width="280" height="6" rx="3" fill="#f0cd95" opacity="0.35"/>
+                <rect x="-128" y="-6" width="256" height="2" fill="#f0cd95" opacity="0.25"/>
+              </g>
+              <g transform="translate(6,-24) rotate(5)">
+                <rect x="-130" y="-16" width="260" height="32" rx="4" fill="url(#bookViolet)"/>
+                <rect x="-130" y="-16" width="260" height="6" rx="3" fill="#f0cd95" opacity="0.4"/>
+                <rect x="-118" y="-6" width="236" height="2" fill="#f0cd95" opacity="0.28"/>
+              </g>
+              <g transform="translate(-4,-48) rotate(-3)">
+                <rect x="-118" y="-15" width="236" height="30" rx="4" fill="url(#bookCrimson)"/>
+                <rect x="-118" y="-15" width="236" height="6" rx="3" fill="#f0cd95" opacity="0.45"/>
+                <rect x="-106" y="-5" width="212" height="2" fill="#f0cd95" opacity="0.3"/>
+              </g>
+            </g>
+
+            <!-- open book on top, pages catching the light -->
+            <g transform="translate(210,258)">
+              <path d="M0 -8 L-118 34 L-118 62 Q-60 40 0 54 Q60 40 118 62 L118 34 Z" fill="url(#pageGlow)" opacity="0.92"/>
+              <path d="M0 -8 L-118 34 L-118 40 Q-60 20 0 34 Q60 20 118 40 L118 34 Z" fill="#fff" opacity="0.5"/>
+              <path d="M-2 -10 Q-2 30 -2 50" stroke="#7a5a2a" stroke-width="1.4" opacity="0.4"/>
+              <g stroke="#c8a25a" stroke-width="1" opacity="0.35">
+                <line x1="-96" y1="30" x2="-96" y2="54"/>
+                <line x1="-64" y1="20" x2="-64" y2="48"/>
+                <line x1="-32" y1="12" x2="-32" y2="44"/>
+                <line x1="32" y1="12" x2="32" y2="44"/>
+                <line x1="64" y1="20" x2="64" y2="48"/>
+                <line x1="96" y1="30" x2="96" y2="54"/>
+              </g>
+              <ellipse cx="0" cy="10" rx="70" ry="26" fill="url(#heroGlow)" opacity="0.5" filter="url(#softGlow)"/>
+            </g>
+
+            <!-- a few rising sparks of light from the pages -->
+            <circle cx="180" cy="200" r="2.2" fill="#f0cd95" opacity="0.7" filter="url(#softGlow)"/>
+            <circle cx="240" cy="176" r="1.6" fill="#fff6e0" opacity="0.6" filter="url(#softGlow)"/>
+            <circle cx="205" cy="150" r="1.8" fill="#f0cd95" opacity="0.55" filter="url(#softGlow)"/>
+          </svg>
+          <!-- floating motes injected by JS -->
+        </div>
+      </div>
+    </section>
+
+    <section class="shell" id="howItWorks">
+      <div class="shell-head">
+        <div>
+          <span class="eyebrow">How it works</span>
+          <h2 style="margin-top:.6rem;">Three steps to your next shelf</h2>
+        </div>
+      </div>
+      <div class="how-grid">
+        <div class="how-card">
+          <span class="step-num">1</span>
+          <h3>Tell us your taste</h3>
+          <p>A short form on books, authors, and genres you already love — no endless swiping required.</p>
+          <button class="go" data-route="quiz">Take the quiz →</button>
+        </div>
+        <div class="how-card">
+          <span class="step-num">2</span>
+          <h3>Get a tailored shelf</h3>
+          <p>Recommendations pulled from global literature, ranked by how closely they match what you told us.</p>
+          <button class="go" data-route="results">See sample shelf →</button>
+        </div>
+        <div class="how-card">
+          <span class="step-num">3</span>
+          <h3>Step inside the story</h3>
+          <p>Open a book and the whole page transforms — themed scenery, a matching playlist, fan art, and more.</p>
+          <button class="go" id="howStep3Btn">Try it on a book →</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="ornate-divider" style="max-width:1320px; margin-left:auto; margin-right:auto; padding:0 5vw;"><span>❧</span></div>
+
+    <section class="shell" style="padding-top:0;">
+      <div class="shell-head">
+        <div>
+          <span class="eyebrow">From the shelves of the world</span>
+          <h2 style="margin-top:.6rem;">Picked from every continent</h2>
+          <p>A handful of what's waiting in the full catalog — click any cover to step inside.</p>
+        </div>
+        <button class="btn" data-route="results">View full catalog →</button>
+      </div>
+      <div class="book-row" id="homeFeaturedRow"></div>
+    </section>
+
+    <section class="shell" style="padding-top:0;">
+      <div class="shell-head">
+        <div>
+          <span class="eyebrow">Ask Grimoire</span>
+          <h2 style="margin-top:.6rem;">Not sure what you're craving?</h2>
+          <p>Tell our AI reading companion the vibe — "something like Fourth Wing but sadder" — and let it dig through the stacks.</p>
+        </div>
+        <button class="btn btn-ghost-violet" id="openAiFromHome">Talk to the AI →</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ QUIZ VIEW ============ -->
+  <main id="view-quiz" class="view">
+    <div class="quiz-shell">
+      <button class="back-link" data-route="home">← Back home</button>
+      <div class="quiz-progress">
+        <i class="active" data-step="0"></i><i data-step="1"></i><i data-step="2"></i><i data-step="3"></i>
+      </div>
+
+      <div class="quiz-step active" data-step="0">
+        <h2>Which genres pull you in?</h2>
+        <p class="hint">Pick as many as you like — we'll weigh them all.</p>
+        <div class="chip-grid" id="genreChips"></div>
+        <div class="quiz-nav">
+          <span></span>
+          <button class="btn btn-gilt" data-next="1">Continue →</button>
+        </div>
+      </div>
+
+      <div class="quiz-step" data-step="1">
+        <h2>Name a few books or authors you love</h2>
+        <p class="hint">We'll find the throughline — tone, pacing, themes — and look for more like it.</p>
+        <div class="text-field">
+          <label>Books you love</label>
+          <input type="text" id="qBooks" placeholder="e.g. Fourth Wing, Circe, Norwegian Wood">
+        </div>
+        <div class="text-field">
+          <label>Authors you love</label>
+          <input type="text" id="qAuthors" placeholder="e.g. Sarah J. Maas, Haruki Murakami">
+        </div>
+        <div class="quiz-nav">
+          <button class="btn" data-prev="0">← Back</button>
+          <button class="btn btn-gilt" data-next="2">Continue →</button>
+        </div>
+      </div>
+
+      <div class="quiz-step" data-step="2">
+        <h2>What mood are you chasing?</h2>
+        <p class="hint">Pick the feeling you want this next read to give you.</p>
+        <div class="chip-grid" id="moodChips"></div>
+        <div class="quiz-nav">
+          <button class="btn" data-prev="1">← Back</button>
+          <button class="btn btn-gilt" data-next="3">Continue →</button>
+        </div>
+      </div>
+
+      <div class="quiz-step" data-step="3">
+        <h2>One last thing</h2>
+        <p class="hint">Anything off the table? We'll keep it out of your shelf.</p>
+        <div class="text-field">
+          <label>Avoid (optional)</label>
+          <input type="text" id="qAvoid" placeholder="e.g. graphic violence, love triangles">
+        </div>
+        <div class="text-field">
+          <label>What should we call you?</label>
+          <input type="text" id="qName" placeholder="e.g. Mira">
+        </div>
+        <div class="quiz-nav">
+          <button class="btn" data-prev="2">← Back</button>
+          <button class="btn btn-gilt btn-lg" id="finishQuizBtn">Build my shelf →</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============ RESULTS VIEW ============ -->
+  <main id="view-results" class="view">
+    <div class="results-head">
+      <span class="eyebrow" id="resultsEyebrow">Your shelf</span>
+      <h2 id="resultsTitle">Recommended for you</h2>
+      <p id="resultsSubtitle">Take the quiz to personalize this shelf — for now, here's a broad pull from across the catalog.</p>
+      <div class="filter-bar" id="genreFilterBar"></div>
+    </div>
+    <div class="results-grid-wrap">
+      <div class="book-grid" id="resultsGrid"></div>
+      <div class="load-more-row"><button class="btn btn-lg" id="loadMoreBtn">Load more recommendations ↓</button></div>
+    </div>
+  </main>
+
+  <!-- ============ LIBRARY VIEW ============ -->
+  <main id="view-library" class="view">
+    <div class="results-head">
+      <span class="eyebrow">Your shelf</span>
+      <h2>Library — Finished Books</h2>
+      <p>Every story you've marked "Finished" from a book's Rate & Shelve tab lives here, so you can always find your way back to it.</p>
+    </div>
+    <div class="results-grid-wrap">
+      <div class="book-grid" id="libraryGrid"></div>
+      <div class="library-empty-wrap" id="libraryEmpty" style="display:none;">
+        <div class="premium-lock-panel" style="border-color:var(--line);">
+          <h3>Your library is empty — for now</h3>
+          <p>Open any book, go to "Rate & Shelve," and mark it Finished. It'll show up here automatically.</p>
+          <button class="btn btn-gilt" data-route="results">Browse the catalog →</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============ BOOK DETAIL VIEW ============ -->
+  <main id="view-book" class="view">
+    <div class="book-detail">
+      <button class="back-link" id="detailBackBtn">← Back to shelf</button>
+      <div class="detail-top">
+        <div class="detail-cover" id="detailCover">
+          <span class="title-on-cover" id="detailCoverTitle"></span>
+        </div>
+        <div class="detail-info">
+          <span class="eyebrow" id="detailCountry"></span>
+          <h1 id="detailTitle"></h1>
+          <p class="by">by <b id="detailAuthor"></b></p>
+          <div class="tags" id="detailTags"></div>
+          <p class="syn dropcap" id="detailSynopsis"></p>
+        </div>
+      </div>
+
+      <div class="section-nav">
+        <button class="active" data-section="synopsis">Synopsis</button>
+        <button data-section="playlist">Playlist</button>
+        <button data-section="fanart">Fan Art <span class="lock">✦</span></button>
+        <button data-section="theories">Fan Theories <span class="lock">✦</span></button>
+        <button data-section="rate">Rate & Shelve</button>
+        <button data-section="comments">Comments</button>
+      </div>
+
+      <div class="detail-section active" data-section="synopsis">
+        <p style="max-width:65ch; color:var(--parchment-dim); font-size:.95rem;">Full synopsis is shown above. Switch tabs to explore the soundtrack, community art, and reader discussion for this book.</p>
+        <div style="margin-top:1.5rem;">
+          <span class="eyebrow">Similar books</span>
+          <div class="book-row" id="similarRow" style="margin-top:1rem;"></div>
+        </div>
+      </div>
+
+      <div class="detail-section" data-section="playlist">
+        <span class="eyebrow">Inspired by the book</span>
+        <h3 style="font-family:var(--font-display); font-size:1.6rem; margin:.6rem 0 1.4rem;">Soundtrack</h3>
+        <div class="playlist-card">
+          <div class="playlist-art" id="playlistArt">
+            <span class="spotify-badge">SPOTIFY</span>
+          </div>
+          <div class="playlist-meta">
+            <b id="playlistName"></b>
+            <span id="playlistSubtitle">Community-curated · matches the book's mood</span>
+            <a class="open-spotify" id="openSpotifyBtn" target="_blank" rel="noopener">▶ Open in Spotify</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-section" data-section="fanart" id="fanartSection"></div>
+      <div class="detail-section" data-section="theories" id="theoriesSection"></div>
+
+      <div class="detail-section" data-section="rate">
+        <span class="eyebrow">Your shelf status</span>
+        <div class="rate-row" id="shelfStatusRow" style="margin-top:1rem;">
+          <button class="rate-btn" data-status="want">Want to Read</button>
+          <button class="rate-btn" data-status="reading">Currently Reading</button>
+          <button class="rate-btn" data-status="finished">Finished</button>
+          <button class="rate-btn" data-status="dnf">Did Not Finish</button>
+        </div>
+        <span class="eyebrow">Your rating</span>
+        <div class="star-row" id="starRow" style="margin-top:1rem;">
+          <span class="star" data-val="1">★</span><span class="star" data-val="2">★</span>
+          <span class="star" data-val="3">★</span><span class="star" data-val="4">★</span>
+          <span class="star" data-val="5">★</span>
+        </div>
+        <p style="color:var(--parchment-dim); font-size:.85rem;" id="ratingSavedNote"></p>
+      </div>
+
+      <div class="detail-section" data-section="comments">
+        <span class="eyebrow">Reader discussion</span>
+        <h3 style="font-family:var(--font-display); font-size:1.6rem; margin:.6rem 0 1.4rem;">Comments</h3>
+        <form class="comment-form" id="commentForm">
+          <input type="text" id="commentInput" placeholder="Share a thought (no spoilers past chapter 1, please)" required>
+          <button type="submit">Post</button>
+        </form>
+        <div class="comment-list" id="commentList"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============ PREMIUM INFO VIEW ============ -->
+  <main id="view-premium-info" class="view">
+    <section class="shell" style="text-align:center; padding-top:5rem;">
+      <span class="eyebrow" style="justify-content:center;">Grimoire Premium</span>
+      <h2 style="font-family:var(--font-head); font-size:clamp(2rem,4vw,2.8rem); margin:1rem 0;">Go deeper into every story</h2>
+      <p style="color:var(--parchment-dim); max-width:55ch; margin:0 auto 2.5rem;">Unlock the community layer of Grimoire — the art, the theories, and a weekly nudge toward your next favorite book.</p>
+      <div class="price-tag">$6.99 <span>/ month</span></div>
+      <button class="btn btn-gilt btn-lg btn-seal" id="upgradeBtn2" style="margin-top:1rem;"><span class="seal-ic">✦</span>Upgrade to Premium</button>
+    </section>
+    <section class="shell" style="padding-top:2rem;">
+      <div class="how-grid">
+        <div class="how-card"><h3>Fan Art Galleries</h3><p>Illustrated fan art for every book's characters and key scenes — a preview is free, Premium unlocks the full gallery.</p></div>
+        <div class="how-card"><h3>Fan Theories</h3><p>Read and post theories about endings, secrets, and what happens after the last page.</p></div>
+        <div class="how-card"><h3>Weekly Picks</h3><p>A weekly email with new recommendations tailored to your shelf, plus a monthly newsletter from our editors.</p></div>
+      </div>
+    </section>
+  </main>
+
+</div>
+
+<footer>
+  <div class="fcol">
+    <div class="fbrand">Grimoire</div>
+    <p style="max-width:32ch;">A reading companion for finding — and stepping inside — your next favorite book.</p>
+  </div>
+  <div class="fcol">
+    <h5>Explore</h5>
+    <button data-route="quiz">Find My Books</button>
+    <button data-route="results">Browse Catalog</button>
+    <button data-route="library">Library</button>
+  </div>
+  <div class="fcol">
+    <h5>Grimoire</h5>
+    <button data-route="premium-info">Premium</button>
+    <button id="footerAiBtn">Ask the AI</button>
+  </div>
+</footer>
+
+<!-- AI Chat Widget -->
+<button id="ai-launcher" aria-label="Open AI reading companion"><span class="pulse"></span><span class="ai-launcher-label">AI</span></button>
+<div id="ai-panel">
+  <div class="ai-head">
+    <h4><span class="dot"></span>Grimoire Companion</h4>
+    <button id="closeAiPanel" style="font-size:1.2rem; color:var(--parchment-dim);">✕</button>
+  </div>
+  <div class="ai-body" id="aiBody"></div>
+  <form class="ai-input-row" id="aiForm">
+    <input type="text" id="aiInput" placeholder="Describe what you want to read…" autocomplete="off">
+    <button type="submit">↑</button>
+  </form>
+</div>
+
+<!-- Onboarding name modal -->
+<div class="modal-overlay" id="onboardModal">
+  <div class="modal-box">
+    <h3>Welcome to Grimoire</h3>
+    <p>Before we build your shelf, what should we call you?</p>
+    <div class="text-field"><input type="text" id="onboardName" placeholder="Your name"></div>
+    <button class="btn btn-gilt btn-lg" id="onboardSaveBtn" style="width:100%;">Continue →</button>
+  </div>
+</div>
+
+<!-- Premium modal (mock checkout) -->
+<div class="modal-overlay" id="premiumModal">
+  <div class="modal-box">
+    <button class="modal-close" id="closePremiumModal">✕</button>
+    <span class="eyebrow">Grimoire Premium</span>
+    <h3 style="margin-top:.7rem;">Unlock the full shelf</h3>
+    <div class="price-tag">$6.99 <span>/ month</span></div>
+    <ul class="perk-list">
+      <li><span class="ic">✦</span> Full-resolution fan art galleries for every book's characters &amp; scenes</li>
+      <li><span class="ic">✦</span> Fan theories — read and post your own</li>
+      <li><span class="ic">✦</span> Weekly tailored recommendation emails</li>
+      <li><span class="ic">✦</span> Monthly editor's newsletter</li>
+    </ul>
+
+    <form id="cardForm">
+      <div class="card-visual">
+        <div class="cv-number" id="cvNumberDisplay">•••• •••• •••• ••••</div>
+        <div class="cv-bottom">
+          <div>Card Holder<b id="cvNameDisplay">Your Name</b></div>
+          <div>Expires<b id="cvExpiryDisplay">MM/YY</b></div>
+        </div>
+      </div>
+      <div class="text-field">
+        <label>Name on Card</label>
+        <input type="text" id="ccName" placeholder="A. Reader" autocomplete="cc-name">
+      </div>
+      <div class="text-field">
+        <label>Card Number</label>
+        <input type="text" id="ccNumber" placeholder="1234 5678 9012 3456" inputmode="numeric" maxlength="19" autocomplete="cc-number">
+      </div>
+      <div class="card-form-row">
+        <div class="text-field">
+          <label>Expiry</label>
+          <input type="text" id="ccExpiry" placeholder="MM/YY" inputmode="numeric" maxlength="5" autocomplete="cc-exp">
+        </div>
+        <div class="text-field">
+          <label>CVC</label>
+          <input type="text" id="ccCvc" placeholder="123" inputmode="numeric" maxlength="4" autocomplete="cc-csc">
+        </div>
+      </div>
+      <p class="cc-error" id="ccError"></p>
+      <button type="submit" class="btn btn-gilt btn-lg btn-seal" id="confirmUpgradeBtn" style="width:100%;"><span class="seal-ic">✦</span><span id="ccSubmitLabel">Subscribe — $6.99/mo</span></button>
+    </form>
+    <p class="demo-note">Demo checkout only — please don't enter a real card. Nothing is charged, transmitted, or stored.</p>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ===================== GRIMOIRE DATA LAYER ===================== */
+const GENRES = [
+  "Fantasy","Romance","Romantasy","Sci-Fi","Horror","Mystery","Thriller",
+  "Literary Fiction","Historical Fiction","Magical Realism","Contemporary",
+  "Poetry","Classics","Dystopian","Crime","Gothic","Adventure","War",
+  "Mythology","Coming-of-Age","Noir","Speculative","Folklore","Drama"
+];
+const MOODS = [
+  "cozy","dark & moody","epic","heart-wrenching","slow-burn","fast-paced",
+  "atmospheric","whimsical","brutal","hopeful","eerie","sweeping","intimate"
+];
+const THEMES = {
+  dragons:   { sky:["#1a0e0f","#3b1014","#5e1a1a"], fx:"dragons",   particles:"embers", label:"Dragons" },
+  ocean:     { sky:["#031019","#05283a","#0b4a5c"], fx:"waves",     particles:"foam", label:"Ocean" },
+  forest:    { sky:["#070f0a","#11271a","#1d3d24"], fx:"fireflies", particles:"leaves", label:"Forest" },
+  space:     { sky:["#03020a","#0a0820","#181246"], fx:"stars",     particles:"stardust", label:"Space" },
+  rain_noir: { sky:["#05070a","#0d1117","#161b22"], fx:"rain",      particles:"neon", label:"Noir" },
+  desert:    { sky:["#190f04","#3a1f0a","#6b3a14"], fx:"sandstorm", particles:"dust", label:"Desert" },
+  snow:      { sky:["#050810","#0e1c2e","#16324a"], fx:"snowfall",  particles:"snow", label:"Snow" },
+  candle:    { sky:["#120a04","#2a1607","#48230a"], fx:"flicker",   particles:"motes", label:"Candlelit" },
+  haunted:   { sky:["#070708","#161013","#241419"], fx:"fog",       particles:"ash", label:"Haunted" },
+  garden:    { sky:["#080f08","#152a14","#234a1f"], fx:"petals",    particles:"pollen", label:"Garden" },
+  storm:     { sky:["#05060c","#10131f","#1c2236"], fx:"lightning", particles:"rain", label:"Storm" },
+  city:      { sky:["#04050a","#0c0e1c","#161a33"], fx:"skyline",   particles:"neon", label:"City" },
+};
+
+/* Illustrated scene per theme — a small "poster" composition (sky + silhouette + ground) that renders
+   instantly inside every book cover and fan-art tile, no images to load, no external source needed. */
+const GROUND_SHAPES = {
+  dragons:  'M0 118 L18 96 L34 112 L52 88 L70 108 L86 92 L100 110 V150 H0 Z',
+  ocean:    'M0 116 Q25 104 50 116 T100 114 V150 H0 Z',
+  forest:   'M0 124 L14 92 L28 118 L44 82 L58 118 L74 96 L88 122 L100 108 V150 H0 Z',
+  space:    'M0 132 Q50 120 100 130 V150 H0 Z',
+  rain_noir:'M0 118 L10 78 L20 118 L32 66 L42 118 L56 84 L66 118 L80 72 L90 118 L100 100 V150 H0 Z',
+  desert:   'M0 120 Q30 100 58 116 T100 112 V150 H0 Z',
+  snow:     'M0 118 L18 82 L34 112 L54 72 L74 112 L90 88 L100 108 V150 H0 Z',
+  candle:   'M0 128 Q50 120 100 128 V150 H0 Z',
+  haunted:  'M0 116 L16 98 L26 114 L42 78 L58 114 L74 92 L90 114 L100 102 V150 H0 Z',
+  garden:   'M0 122 Q25 106 50 122 T100 118 V150 H0 Z',
+  storm:    'M0 116 Q25 98 50 116 T100 110 V150 H0 Z',
+  city:     'M0 110 L9 64 L20 110 L31 48 L42 110 L53 74 L64 110 L75 58 L86 110 L96 70 L100 110 V150 H0 Z',
+};
+function sceneStars(seed){
+  const rng = seededRandom(1000+seed);
+  let out = '';
+  for(let i=0;i<6;i++){
+    out += `<circle cx="${(rng()*100).toFixed(1)}" cy="${(rng()*46).toFixed(1)}" r="${(rng()*1+0.5).toFixed(2)}" fill="#fff" opacity="${(rng()*0.5+0.3).toFixed(2)}"/>`;
+  }
+  return out;
+}
+function themeSVGInner(theme, seed=0){
+  const ground = GROUND_SHAPES[theme] || GROUND_SHAPES.city;
+  const stars = sceneStars(seed);
+  let mid = '';
+  switch(theme){
+    case 'dragons': mid = `<circle cx="78" cy="26" r="12" fill="#f0cd95" opacity="0.5"/><path d="M8 122 Q32 92 50 116 Q68 92 92 122 Q68 136 50 123 Q32 136 8 122Z" fill="#c96a5a" opacity="0.55"/>`; break;
+    case 'ocean': mid = `<circle cx="80" cy="28" r="9" fill="#f0cd95" opacity="0.45"/><path d="M0 98 Q25 84 50 98 T100 98 V150 H0 Z" fill="#3fa3c2" opacity="0.4"/><path d="M8 82 L34 70 L36 82 Z" fill="#1a2a33" opacity="0.5"/>`; break;
+    case 'forest': mid = `<circle cx="76" cy="26" r="9" fill="#e8e3d8" opacity="0.35"/><polygon points="30,58 46,96 14,96" fill="#3f7a4c" opacity="0.5"/><polygon points="72,54 90,96 54,96" fill="#3f7a4c" opacity="0.5"/>`; break;
+    case 'space': mid = `<circle cx="66" cy="36" r="15" fill="#e8e3d8" opacity="0.4"/><circle cx="66" cy="36" r="20" fill="none" stroke="#e8e3d8" stroke-width="1.2" opacity="0.25" transform="rotate(-18 66 36)"/>`; break;
+    case 'rain_noir': mid = `<g stroke="#8fb0d9" stroke-width="1.6" opacity="0.4"><line x1="18" y1="16" x2="8" y2="42"/><line x1="40" y1="10" x2="30" y2="38"/><line x1="62" y1="18" x2="52" y2="46"/><line x1="84" y1="8" x2="74" y2="36"/></g><circle cx="20" cy="70" r="2.4" fill="#f0cd95" opacity="0.6"/>`; break;
+    case 'desert': mid = `<circle cx="76" cy="30" r="13" fill="#f0cd95" opacity="0.5"/><polygon points="12,96 24,72 36,96" fill="#5a3416" opacity="0.5"/><polygon points="30,96 42,78 54,96" fill="#6b3f1c" opacity="0.5"/>`; break;
+    case 'snow': mid = `<circle cx="72" cy="24" r="8" fill="#cfe4ff" opacity="0.4"/><g stroke="#cfe4ff" stroke-width="1.4" opacity="0.5"><line x1="50" y1="34" x2="50" y2="78"/><line x1="28" y1="56" x2="72" y2="56"/><line x1="34" y1="40" x2="66" y2="72"/><line x1="66" y1="40" x2="34" y2="72"/></g>`; break;
+    case 'candle': mid = `<path d="M50 30 Q62 52 50 74 Q38 52 50 30Z" fill="#ffb066" opacity="0.6"/><ellipse cx="50" cy="64" rx="9" ry="15" fill="#ff8a3d" opacity="0.4"/><rect x="30" y="86" width="40" height="6" rx="2" fill="#5a3416" opacity="0.4"/>`; break;
+    case 'haunted': mid = `<circle cx="74" cy="24" r="10" fill="#c9c9d6" opacity="0.3"/><path d="M35 58 Q35 32 50 32 Q65 32 65 58 L65 100 Q60 94 55 100 Q50 94 45 100 Q40 94 35 100 Z" fill="#c9c9d6" opacity="0.38"/>`; break;
+    case 'garden': mid = `<circle cx="74" cy="26" r="8" fill="#f0cd95" opacity="0.4"/><g fill="#e6a8b8" opacity="0.5"><circle cx="42" cy="60" r="9"/><circle cx="30" cy="66" r="9"/><circle cx="54" cy="66" r="9"/><circle cx="42" cy="76" r="9"/></g><circle cx="42" cy="66" r="5" fill="#f0cd95" opacity="0.65"/>`; break;
+    case 'storm': mid = `<polygon points="55,22 33,70 48,70 38,108 72,54 55,54" fill="#e8e3d8" opacity="0.5"/>`; break;
+    case 'city': mid = `<circle cx="20" cy="26" r="8" fill="#f0cd95" opacity="0.35"/><g fill="#232a4d" opacity="0.6"><rect x="8" y="72" width="13" height="46"/><rect x="25" y="56" width="13" height="62"/><rect x="42" y="80" width="13" height="38"/><rect x="59" y="40" width="13" height="78"/><rect x="76" y="64" width="12" height="54"/></g>`; break;
+    default: mid = `<circle cx="50" cy="40" r="12" fill="#f0cd95" opacity="0.4"/>`;
+  }
+  const accent = (THEMES[theme] && THEMES[theme].sky && THEMES[theme].sky[2]) || '#3b1014';
+  return `${stars}${mid}<path d="${ground}" fill="${accent}" opacity="0.55"/>`;
+}
+function themeSVG(theme, seed=0){
+  return `<svg class="cover-art-svg" viewBox="0 0 100 150" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">${themeSVGInner(theme, seed)}</svg>`;
+}
+
+const SEED_BOOKS = [
+  { title:"Fourth Wing", author:"Rebecca Yarros", country:"USA", genres:["Romantasy","Fantasy"], mood:["epic","slow-burn"], theme:"dragons", coverId:14605482,
+    synopsis:"A war college trains riders to bond with dragons, and a fragile recruit must survive both the killing curriculum and the rider she can't stop noticing.",
+    playlistMood:"dragon-rider-romantasy", spotifySearch:"Fourth Wing playlist" },
+  { title:"The Name of the Wind", author:"Patrick Rothfuss", country:"USA", genres:["Fantasy"], mood:["atmospheric","epic"], theme:"candle", coverId:8259445,
+    synopsis:"An innkeeper recounts the true story of his legendary, reckless youth as a gifted student of magic, music, and ruin.",
+    playlistMood:"bardic-tavern-magic", spotifySearch:"Name of the Wind playlist" },
+  { title:"The Priory of the Orange Tree", author:"Samantha Shannon", country:"UK", genres:["Fantasy","Romantasy"], mood:["epic","sweeping"], theme:"dragons", coverId:10093837,
+    synopsis:"Across four kingdoms, a queen, a spy, and a dragon-rider are drawn toward the same ancient threat sleeping beneath the sea.",
+    playlistMood:"queens-and-wyrms", spotifySearch:"Priory of the Orange Tree playlist" },
+  { title:"Piranesi", author:"Susanna Clarke", country:"UK", genres:["Fantasy","Speculative"], mood:["eerie","atmospheric"], theme:"haunted", coverId:10226290,
+    synopsis:"A man lives alone in an endless house of statues and tides, recording its halls in a journal he no longer fully trusts.",
+    playlistMood:"labyrinth-halls", spotifySearch:"Piranesi playlist" },
+  { title:"The Witcher: The Last Wish", author:"Andrzej Sapkowski", country:"Poland", genres:["Fantasy","Adventure"], mood:["dark & moody","brutal"], theme:"forest", coverId:12848705,
+    synopsis:"A monster hunter takes contracts across a world where the line between man and monster keeps refusing to hold still.",
+    playlistMood:"witcher-forest-ballads", spotifySearch:"The Witcher playlist" },
+  { title:"Throne of Glass", author:"Sarah J. Maas", country:"USA", genres:["Fantasy","Romantasy"], mood:["fast-paced","epic"], theme:"city", coverId:14331115,
+    synopsis:"An assassin trades her freedom for a shot at becoming the king's champion, in a court where every ally has a blade behind their back.",
+    playlistMood:"assassin-court-intrigue", spotifySearch:"Throne of Glass playlist" },
+  { title:"Project Hail Mary", author:"Andy Weir", country:"USA", genres:["Sci-Fi"], mood:["fast-paced","hopeful"], theme:"space", coverId:12455001,
+    synopsis:"A lone astronaut wakes with no memory on a one-way mission to save Earth, and has to MacGyver his way through first contact and physics.",
+    playlistMood:"solo-survival-spacecore", spotifySearch:"Project Hail Mary playlist" },
+  { title:"Three-Body Problem", author:"Liu Cixin", country:"China", genres:["Sci-Fi"], mood:["epic","brutal"], theme:"space", coverId:8478888,
+    synopsis:"A physicist's suicide cluster and a strange video game lead to the discovery that humanity is not, in fact, alone — or safe.",
+    playlistMood:"first-contact-dread", spotifySearch:"Three-Body Problem playlist" },
+  { title:"Klara and the Sun", author:"Kazuo Ishiguro", country:"UK/Japan", genres:["Sci-Fi","Literary Fiction"], mood:["heart-wrenching","intimate"], theme:"city", coverId:10871487,
+    synopsis:"An artificial companion observes the family she serves with devotion the humans around her can't quite return in kind.",
+    playlistMood:"solar-powered-tenderness", spotifySearch:"Klara and the Sun playlist" },
+  { title:"Dune", author:"Frank Herbert", country:"USA", genres:["Sci-Fi","Adventure"], mood:["epic","sweeping"], theme:"desert", coverId:14565843,
+    synopsis:"A duke's heir is thrown into a desert world of sandworms and prophecy after his family's empire collapses overnight.",
+    playlistMood:"spice-and-sand", spotifySearch:"Dune playlist" },
+  { title:"Children of Time", author:"Adrian Tchaikovsky", country:"UK", genres:["Sci-Fi"], mood:["epic","atmospheric"], theme:"space", coverId:14361782,
+    synopsis:"A terraforming experiment goes sideways across millennia, and the descendants of the last humans meet a civilization they accidentally built.",
+    playlistMood:"deep-time-spiders", spotifySearch:"Children of Time playlist" },
+  { title:"Mexican Gothic", author:"Silvia Moreno-Garcia", country:"Mexico", genres:["Horror","Gothic"], mood:["eerie","atmospheric"], theme:"haunted", coverId:10239163,
+    synopsis:"A socialite travels to a decaying countryside mansion to check on her cousin and finds the house itself is not done with its old appetites.",
+    playlistMood:"rotting-manor-dread", spotifySearch:"Mexican Gothic playlist" },
+  { title:"The Haunting of Hill House", author:"Shirley Jackson", country:"USA", genres:["Horror","Gothic"], mood:["eerie","dark & moody"], theme:"haunted", coverId:13147201,
+    synopsis:"Four strangers move into a house built wrong on purpose, and the house starts choosing favorites.",
+    playlistMood:"crooked-hallways", spotifySearch:"Haunting of Hill House playlist" },
+  { title:"Pet Sematary", author:"Stephen King", country:"USA", genres:["Horror"], mood:["brutal","dark & moody"], theme:"forest", coverId:14654005,
+    synopsis:"A family moves next to a burial ground with an unnatural shortcut back from death, and grief makes terrible logic feel reasonable.",
+    playlistMood:"backwoods-dread", spotifySearch:"Pet Sematary playlist" },
+  { title:"The Devotion of Suspect X", author:"Keigo Higashino", country:"Japan", genres:["Mystery","Crime"], mood:["slow-burn","atmospheric"], theme:"rain_noir", coverId:6677764,
+    synopsis:"A genius mathematician quietly rebuilds a murder cover-up around a detective who's slowly realizing he's being outplayed.",
+    playlistMood:"tokyo-rain-and-logic", spotifySearch:"Devotion of Suspect X playlist" },
+  { title:"Gone Girl", author:"Gillian Flynn", country:"USA", genres:["Thriller","Mystery"], mood:["brutal","fast-paced"], theme:"rain_noir", coverId:12498395,
+    synopsis:"A wife vanishes on her anniversary, and the marriage underneath the search turns out to be the real crime scene.",
+    playlistMood:"suburban-rot", spotifySearch:"Gone Girl playlist" },
+  { title:"The Girl with the Dragon Tattoo", author:"Stieg Larsson", country:"Sweden", genres:["Crime","Thriller"], mood:["dark & moody","brutal"], theme:"snow", coverId:10544669,
+    synopsis:"A disgraced journalist and a hacker with a violent past dig into a decades-old disappearance that the wrong people want buried.",
+    playlistMood:"nordic-noir-snow", spotifySearch:"Girl with the Dragon Tattoo playlist" },
+  { title:"In the Woods", author:"Tana French", country:"Ireland", genres:["Mystery","Crime"], mood:["atmospheric","slow-burn"], theme:"forest", coverId:6458460,
+    synopsis:"A detective investigates a child's murder in the same woods where he survived an unexplained childhood trauma he can't fully remember.",
+    playlistMood:"dublin-woods-unease", spotifySearch:"In the Woods Tana French playlist" },
+  { title:"One Hundred Years of Solitude", author:"Gabriel García Márquez", country:"Colombia", genres:["Magical Realism","Classics"], mood:["sweeping","whimsical"], theme:"garden", coverId:38979,
+    synopsis:"Seven generations of the Buendía family live out the rise and rot of the town they founded, where prophecy and memory bend like heat.",
+    playlistMood:"macondo-heat", spotifySearch:"One Hundred Years of Solitude playlist" },
+  { title:"Norwegian Wood", author:"Haruki Murakami", country:"Japan", genres:["Literary Fiction","Coming-of-Age"], mood:["intimate","heart-wrenching"], theme:"forest", coverId:6376119,
+    synopsis:"A college student drifts between two very different women while grief from a friend's suicide quietly reshapes everything he touches.",
+    playlistMood:"tokyo-melancholy", spotifySearch:"Norwegian Wood playlist" },
+  { title:"The House of the Spirits", author:"Isabel Allende", country:"Chile", genres:["Magical Realism","Historical Fiction"], mood:["sweeping","epic"], theme:"garden", coverId:15122742,
+    synopsis:"A family's clairvoyant matriarch, her tyrant husband, and three generations of daughters live through love, ghosts, and a country's violent turn.",
+    playlistMood:"clairvoyant-household", spotifySearch:"House of the Spirits playlist" },
+  { title:"Convenience Store Woman", author:"Sayaka Murata", country:"Japan", genres:["Literary Fiction","Contemporary"], mood:["cozy","atmospheric"], theme:"city", coverId:15228140,
+    synopsis:"A woman who has never felt 'normal' finds the only place she fits is inside the rules of a 24-hour convenience store.",
+    playlistMood:"fluorescent-routine", spotifySearch:"Convenience Store Woman playlist" },
+  { title:"All the Light We Cannot See", author:"Anthony Doerr", country:"USA", genres:["Historical Fiction","War"], mood:["heart-wrenching","sweeping"], theme:"storm", coverId:14847382,
+    synopsis:"A blind French girl and a German radio prodigy are pulled toward the same Breton city as WWII closes in around them both.",
+    playlistMood:"occupied-coastline", spotifySearch:"All the Light We Cannot See playlist" },
+  { title:"Pachinko", author:"Min Jin Lee", country:"South Korea", genres:["Historical Fiction"], mood:["sweeping","heart-wrenching"], theme:"city", coverId:14829324,
+    synopsis:"Four generations of a Korean family endure displacement, prejudice, and quiet endurance across Japan's twentieth century.",
+    playlistMood:"generational-endurance", spotifySearch:"Pachinko playlist" },
+  { title:"The Kite Runner", author:"Khaled Hosseini", country:"Afghanistan", genres:["Historical Fiction","Drama"], mood:["heart-wrenching","brutal"], theme:"desert", coverId:12728870,
+    synopsis:"A betrayal between two boys in Kabul follows one of them across decades and an ocean, demanding to be answered for.",
+    playlistMood:"kabul-skies", spotifySearch:"The Kite Runner playlist" },
+  { title:"Half of a Yellow Sun", author:"Chimamanda Ngozi Adichie", country:"Nigeria", genres:["Historical Fiction","War"], mood:["sweeping","brutal"], theme:"storm", coverId:8310823,
+    synopsis:"Two sisters' lives fracture along the lines of the Biafran war, told through the people who loved them on either side.",
+    playlistMood:"biafra-storm-fronts", spotifySearch:"Half of a Yellow Sun playlist" },
+  { title:"Never Let Me Go", author:"Kazuo Ishiguro", country:"UK", genres:["Dystopian","Literary Fiction"], mood:["heart-wrenching","slow-burn"], theme:"storm", coverId:13160732,
+    synopsis:"Students at an idyllic boarding school slowly learn what their futures were always built for, and choose how to love anyway.",
+    playlistMood:"hailsham-elegy", spotifySearch:"Never Let Me Go playlist" },
+  { title:"The Handmaid's Tale", author:"Margaret Atwood", country:"Canada", genres:["Dystopian","Speculative"], mood:["brutal","dark & moody"], theme:"storm", coverId:15162571,
+    synopsis:"In a theocratic regime built on forced fertility, a woman catalogs the small, dangerous ways she keeps a self the state didn't authorize.",
+    playlistMood:"red-cloaks-resistance", spotifySearch:"Handmaid's Tale playlist" },
+  { title:"Circe", author:"Madeline Miller", country:"USA", genres:["Mythology","Fantasy"], mood:["epic","sweeping"], theme:"ocean", coverId:8283869,
+    synopsis:"Banished to a lonely island, the witch of Greek myth builds a power entirely her own out of exile, herbs, and refusal.",
+    playlistMood:"island-witch-tides", spotifySearch:"Circe playlist" },
+  { title:"Norse Mythology", author:"Neil Gaiman", country:"UK", genres:["Mythology","Folklore"], mood:["whimsical","epic"], theme:"snow",
+    synopsis:"Odin, Thor, and Loki's old stories are retold with a trickster's timing and an ending everyone already knows is coming.",
+    playlistMood:"frost-giants-and-tricksters", spotifySearch:"Norse Mythology playlist" },
+  { title:"Milk and Honey", author:"Rupi Kaur", country:"Canada/India", genres:["Poetry","Contemporary"], mood:["intimate","heart-wrenching"], theme:"garden", coverId:15162565,
+   
